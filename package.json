@@ -1,0 +1,22 @@
+{
+  "name": "agent-crew",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Multi-agent crew (PM, Architect, Developer, Tester, Reviewer) with Slack approval gates",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.60.0",
+    "@slack/bolt": "^4.4.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
