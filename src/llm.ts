@@ -19,9 +19,11 @@ export interface PriorOutput {
 /**
  * Runs one role. Context = the idea + every approved artifact so far
  * (+ human feedback if changes were requested).
+ * `outDir` is the run's or project's root folder (see `runDir` in store.ts); only
+ * agentic providers (Kiro) use it, to give Developer/Tester/Reviewer a real workspace.
  */
 export async function runRole(
-  runId: string,
+  outDir: string,
   role: Role,
   idea: string,
   prior: PriorOutput[],
@@ -39,7 +41,7 @@ export async function runRole(
 Revise your previous draft to address the feedback. Output the full revised deliverable.`;
   }
 
-  if (PROVIDER === 'kiro') return callKiro(role, runId, user);
+  if (PROVIDER === 'kiro') return callKiro(role, outDir, user);
   if (PROVIDER === 'anthropic') return callAnthropic(role, user);
   return callOllama(role, user);
 }

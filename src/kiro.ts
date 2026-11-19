@@ -13,21 +13,22 @@ const OPEN = '<<<DELIVERABLE';
 const CLOSE = 'DELIVERABLE>>>';
 
 /** Shared folder per run: Developer writes code, Tester adds tests, Reviewer reads both. */
-export function workspaceDir(runId: string) {
-  return path.resolve('runs', runId, 'workspace');
+export function workspaceDir(outDir: string) {
+  return path.resolve(outDir, 'workspace');
 }
 
 /**
  * Runs one role through Kiro CLI headless mode.
+ * `outDir` is the run's or project's root folder (see `runDir` in store.ts).
  * The deliverable is fenced with markers because plain stdout also contains
  * tool-status lines, trust warnings and a credits footer.
  */
-export async function callKiro(role: Role, runId: string, userPrompt: string): Promise<string> {
+export async function callKiro(role: Role, outDir: string, userPrompt: string): Promise<string> {
   // Text-only roles run in an empty scratch dir so they can't see or touch the code.
   const cwd =
     role.workspace === 'none'
-      ? path.resolve('runs', runId, 'scratch', role.id)
-      : workspaceDir(runId);
+      ? path.resolve(outDir, 'scratch', role.id)
+      : workspaceDir(outDir);
   await mkdir(cwd, { recursive: true });
 
   const system = role.workspace === 'none' ? role.system : (role.agenticSystem ?? role.system);

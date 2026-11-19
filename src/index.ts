@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { App, type BlockAction, type ButtonAction } from '@slack/bolt';
 import { getRole, type RoleId } from './agents.js';
 import { runPipeline } from './orchestrator.js';
-import { store } from './store.js';
+import { ensureProjectDir, store } from './store.js';
 import { feedbackModal } from './slack-ui.js';
 import { checkLlm } from './llm.js';
 
@@ -16,30 +16,49 @@ const app = new App({
 const APPROVERS = (process.env.APPROVER_USER_IDS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 const canApprove = (userId: string) => APPROVERS.length === 0 || APPROVERS.includes(userId);
 
-// ── Start a run: /crew <feature idea> ───────────────────────────────
+// ── Start a run: /crew <feature idea>  or  /crew <project-name>: <feature idea> ──
 const COMMAND = process.env.SLACK_COMMAND ?? '/crew';
+
+/** "my-app" -> "my-app"; strips anything that isn't safe as a folder name. */
+function slugify(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+/** A single leading token before ":" names a resumable project; anything else is just the idea. */
+function parseCommand(text: string): { project?: string; idea: string } {
+  const match = /^([^\s:]+):\s*(\S.*)$/.exec(text);
+  const project = match ? slugify(match[1]) : '';
+  return project ? { project, idea: match![2].trim() } : { idea: text };
+}
 
 app.command(COMMAND, async ({ command, ack, client }) => {
   await ack();
-  const idea = command.text.trim();
-  if (!idea) {
+  const raw = command.text.trim();
+  if (!raw) {
     await client.chat.postEphemeral({
       channel: command.channel_id,
       user: command.user_id,
-      text: `Usage: \`${COMMAND} <feature idea>\``,
+      text: `Usage: \`${COMMAND} <feature idea>\` or \`${COMMAND} <project-name>: <feature idea>\` to start/resume a named project.`,
     });
     return;
   }
+  const { project, idea } = parseCommand(raw);
 
   const id = randomUUID().slice(0, 8);
+  const projectNote = project
+    ? (await ensureProjectDir(project))
+      ? ` — resuming project *${project}*`
+      : ` — new project *${project}*`
+    : '';
   const root = await client.chat.postMessage({
     channel: command.channel_id,
-    text: `:rocket: *Run ${id}* started by <@${command.user_id}>\n>${idea}`,
+    text: `:rocket: *Run ${id}* started by <@${command.user_id}>${projectNote}\n>${idea}`,
   });
 
   const run = store.create({
     id,
     idea,
+    project: project || undefined,
     channel: command.channel_id,
     threadTs: root.ts!,
     startedBy: command.user_id,
